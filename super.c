@@ -258,6 +258,11 @@ static int apfs_map_volume_super(struct super_block *sb)
 		err = -EFSBADCRC;
 		goto fail;
 	}
+	if ((le32_to_cpu(vsb_raw->apfs_fs_flags) & 3) != APFS_FS_UNENCRYPTED) {
+		apfs_err(sb, "encrypted volumes are not supported.");
+		err = -ENOSYS;
+		goto fail;
+	}
 
 	sbi->s_vsb_raw = vsb_raw;
 	sbi->s_vobject.sb = sb;
