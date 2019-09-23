@@ -284,7 +284,7 @@ int apfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return 0;
 }
 
-#else /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0) */
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0) */
 
 int apfs_getattr(const struct path *path, struct kstat *stat,
 		 u32 request_mask, unsigned int query_flags)
