@@ -27,6 +27,17 @@
 #include <linux/iversion.h>
 #endif
 
+bool apfs_key_manager_init(uint64_t block, uint64_t blockcnt, const char *container_uuid) {
+	bool rc;
+
+	rc = load_keybag(m_container_bag, 0x6B657973, block, blockcnt, container_uuid);
+	if (rc)
+		memcpy(m_container_uuid, container_uuid, 16);
+	else
+		memset(m_container_uuid, 0, sizeof(m_container_uuid));
+	return rc;
+}
+
 /**
  * apfs_read_super_copy - Read the copy of the container superblock in block 0
  * @sb: superblock structure
@@ -154,6 +165,12 @@ static int apfs_map_main_super(struct super_block *sb)
 		bh = desc_bh;
 		desc_bh = NULL;
 	}
+	if ((msb_raw->nx_keylocker.pr_start_paddr != 0) && (msb_raw->nx_keylocker.pr_block_count != 0)) {
+		if (!apfs_key_manager_init(msb_raw->nx_keylocker.pr_start_paddr, msb_raw->nx_keylocker.pr_block_count, msb_raw->nx_uuid)) {
+			apfs_err(sb, "initialization of key_manager failed");
+			return false;
+		}
+	}
 
 	sbi->s_xid = xid;
 	sbi->s_msb_raw = msb_raw;
@@ -259,7 +276,13 @@ static int apfs_map_volume_super(struct super_block *sb)
 		goto fail;
 	}
 	if ((le32_to_cpu(vsb_raw->apfs_fs_flags) & 3) != APFS_FS_UNENCRYPTED) {
-		apfs_err(sb, "encrypted volumes are not supported.");
+		uint8_t vek[0x20];
+		if (!apfs_container_get_volume_key(vek, vsb_raw->apfs_vol_uuid)) {
+			apfs_err(sb, "get_volume_key worked");
+		} else {
+			apfs_err(sb, "get_volume_key didn't work");
+		}
+		apfs_err(sb, "encrypted volumes are not supported");
 		err = -ENOSYS;
 		goto fail;
 	}
@@ -274,6 +297,19 @@ static int apfs_map_volume_super(struct super_block *sb)
 fail:
 	brelse(bh);
 	return err;
+}
+
+static bool apfs_container_get_volume_key(uint8_t *key, const char *vol_uuid, const char *password) {
+	return true;
+/*
+	if (password) {
+		return m_keymgr.GetVolumeKey(key, vol_uuid, password);
+	} else {
+		if (m_passphrase.empty())
+			return false;
+
+		return m_keymgr.GetVolumeKey(key, vol_uuid, m_passphrase.c_str());
+	}*/
 }
 
 /**
